@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Algoritimo Trade - Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .status-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .status-item h3 {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .status-item .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .status-item .value.positive {
+            color: #28a745;
+        }
+        
+        .status-item .value.negative {
+            color: #dc3545;
+        }
+        
+        .positive {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .negative {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .ticker-selector {
+            margin-bottom: 20px;
+        }
+        
+        .ticker-selector select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        .sinal-display {
+            text-align: center;
+            padding: 30px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .sinal-display.comprar {
+            background: #d4edda;
+            border: 3px solid #28a745;
+        }
+        
+        .sinal-display.vender {
+            background: #f8d7da;
+            border: 3px solid #dc3545;
+        }
+        
+        .sinal-display.neutro {
+            background: #fff3cd;
+            border: 3px solid #ffc107;
+        }
+        
+        .sinal-display h3 {
+            font-size: 48px;
+            margin: 10px 0;
+        }
+        
+        .indicadores {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        
+        .indicador {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .indicador label {
+            display: block;
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        
+        .indicador .value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        
+        .btn:hover {
+            background: #5568d3;
+        }
+        
+        .operacoes-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .operacoes-table th,
+        .operacoes-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .operacoes-table th {
+            background: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        .operacoes-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Algoritimo Trade - Dashboard de Controle</h1>
+            <div class="status-bar" id="statusBar">
+                <div class="status-item">
+                    <h3>Capital Atual</h3>
+                    <div class="value" id="capitalAtual">R$ 0,00</div>
+                </div>
+                <div class="status-item">
+                    <h3>Retorno</h3>
+                    <div class="value" id="retorno">0.00%</div>
+                </div>
+                <div class="status-item">
+                    <h3>Posições Abertas</h3>
+                    <div class="value" id="posicoesAbertas">0</div>
+                </div>
+                <div class="status-item">
+                    <h3>Total de Operações</h3>
+                    <div class="value" id="totalOperacoes">0</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid">
+            <div class="card">
+                <h2>📊 Análise de Ticker</h2>
+                <div class="ticker-selector">
+                    <select id="tickerSelect" onchange="analisarTicker()">
+                        <option value="">Selecione um ticker...</option>
+                    </select>
+                </div>
+                <div id="analiseResultado">
+                    <div class="loading">Selecione um ticker para analisar</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>📈 Indicadores Técnicos</h2>
+                <div id="indicadoresDisplay">
+                    <div class="loading">Aguardando análise...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>📋 Histórico de Operações</h2>
+            <div id="operacoesContainer">
+                <div class="loading">Carregando operações...</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let tickers = [];
+        
+        // Carregar tickers disponíveis
+        async function carregarTickers() {
+            try {
+                console.log('Carregando tickers...');
+                const response = await fetch('/api/tickers');
+                const data = await response.json();
+                console.log('Tickers recebidos:', data);
+                
+                tickers = data.tickers || [];
+                
+                const select = document.getElementById('tickerSelect');
+                // Limpar opções existentes (exceto a primeira)
+                while (select.options.length > 1) {
+                    select.remove(1);
+                }
+                
+                // Adicionar novos tickers
+                tickers.forEach(ticker => {
+                    const option = document.createElement('option');
+                    option.value = ticker;
+                    // Remover .SA para exibição mais limpa
+                    option.textContent = ticker.replace('.SA', '');
+                    select.appendChild(option);
+                });
+                
+                console.log(`${tickers.length} tickers carregados`);
+            } catch (error) {
+                console.error('Erro ao carregar tickers:', error);
+                // Em caso de erro, adicionar tickers padrão
+                const select = document.getElementById('tickerSelect');
+                const tickersPadrao = ['BBSE3', 'CMIG4', 'CSMG3', 'ITUB4', 'PETR4', 'SANB11', 'SYN3'];
+                tickersPadrao.forEach(ticker => {
+                    const option = document.createElement('option');
+                    option.value = ticker + '.SA';
+                    option.textContent = ticker;
+                    select.appendChild(option);
+                });
+            }
+        }
+        
+        // Atualizar status
+        async function atualizarStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                document.getElementById('capitalAtual').textContent = 
+                    `R$ ${data.capital_atual.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+                
+                const retornoEl = document.getElementById('retorno');
+                retornoEl.textContent = `${data.retorno_percentual.toFixed(2)}%`;
+                retornoEl.className = 'value ' + (data.retorno_percentual >= 0 ? 'positive' : 'negative');
+                
+                document.getElementById('posicoesAbertas').textContent = data.posicoes_abertas;
+                document.getElementById('totalOperacoes').textContent = data.total_operacoes;
+            } catch (error) {
+                console.error('Erro ao atualizar status:', error);
+            }
+        }
+        
+        // Analisar ticker
+        async function analisarTicker() {
+            const ticker = document.getElementById('tickerSelect').value;
+            if (!ticker) return;
+            
+            const resultadoDiv = document.getElementById('analiseResultado');
+            resultadoDiv.innerHTML = '<div class="loading">Analisando...</div>';
+            
+            try {
+                const response = await fetch(`/api/analisar/${ticker}`);
+                const data = await response.json();
+                
+                if (data.erro) {
+                    resultadoDiv.innerHTML = `<div class="loading" style="color: red;">Erro: ${data.erro}</div>`;
+                    return;
+                }
+                
+                let sinalClass = 'neutro';
+                let sinalTexto = 'NEUTRO';
+                let sinalEmoji = '➡️';
+                
+                if (data.sinal_final === 1) {
+                    sinalClass = 'comprar';
+                    sinalTexto = 'COMPRAR';
+                    sinalEmoji = '🟢';
+                } else if (data.sinal_final === -1) {
+                    sinalClass = 'vender';
+                    sinalTexto = 'VENDER';
+                    sinalEmoji = '🔴';
+                }
+                
+                // Formatar variação
+                let variacaoHtml = '';
+                if (data.variacao_percentual !== undefined) {
+                    const variacao = data.variacao_percentual;
+                    const variacaoClass = variacao > 0 ? 'positive' : variacao < 0 ? 'negative' : '';
+                    const variacaoEmoji = variacao > 0 ? '📈' : variacao < 0 ? '📉' : '➡️';
+                    variacaoHtml = `<p>Variação: <span class="${variacaoClass}">${variacaoEmoji} ${variacao >= 0 ? '+' : ''}${variacao.toFixed(2)}%</span></p>`;
+                }
+                
+                const fonteDados = data.fonte_dados || 'MERCADO REAL';
+                
+                resultadoDiv.innerHTML = `
+                    <div class="sinal-display ${sinalClass}">
+                        <h3>${sinalEmoji} ${sinalTexto}</h3>
+                        <p>Confiança: ${(data.confianca * 100).toFixed(1)}%</p>
+                        <p><strong>Preço Atual: R$ ${data.preco_atual.toFixed(2)}</strong></p>
+                        ${variacaoHtml}
+                        <p style="font-size: 12px; color: #666; margin-top: 10px;">Fonte: ${fonteDados}</p>
+                    </div>
+                    <div class="indicadores">
+                        <div class="indicador">
+                            <label>Sentimento Notícias</label>
+                            <div class="value">${(data.sentimento_noticias * 100).toFixed(1)}%</div>
+                        </div>
+                        <div class="indicador">
+                            <label>RSI</label>
+                            <div class="value">${data.rsi ? data.rsi.toFixed(2) : 'N/A'}</div>
+                        </div>
+                        <div class="indicador">
+                            <label>Sinal Tendência</label>
+                            <div class="value">${data.sinal_trend === 1 ? '🟢' : data.sinal_trend === -1 ? '🔴' : '➡️'}</div>
+                        </div>
+                        <div class="indicador">
+                            <label>Sinal Reversão</label>
+                            <div class="value">${data.sinal_reversao === 1 ? '🟢' : data.sinal_reversao === -1 ? '🔴' : '➡️'}</div>
+                        </div>
+                    </div>
+                `;
+                
+                // Atualizar indicadores
+                const indicadoresDiv = document.getElementById('indicadoresDisplay');
+                indicadoresDiv.innerHTML = `
+                    <div class="indicadores">
+                        <div class="indicador">
+                            <label>RSI</label>
+                            <div class="value">${data.rsi ? data.rsi.toFixed(2) : 'N/A'}</div>
+                        </div>
+                        <div class="indicador">
+                            <label>MACD</label>
+                            <div class="value">${data.macd ? data.macd.toFixed(4) : 'N/A'}</div>
+                        </div>
+                        <div class="indicador">
+                            <label>Sentimento</label>
+                            <div class="value">${(data.sentimento_noticias * 100).toFixed(1)}%</div>
+                        </div>
+                        <div class="indicador">
+                            <label>Confiança</label>
+                            <div class="value">${(data.confianca * 100).toFixed(1)}%</div>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                resultadoDiv.innerHTML = `<div class="loading" style="color: red;">Erro: ${error.message}</div>`;
+            }
+        }
+        
+        // Carregar operações
+        async function carregarOperacoes() {
+            try {
+                const response = await fetch('/api/operacoes');
+                const data = await response.json();
+                
+                const container = document.getElementById('operacoesContainer');
+                
+                if (data.operacoes.length === 0) {
+                    container.innerHTML = '<div class="loading">Nenhuma operação registrada</div>';
+                    return;
+                }
+                
+                let html = '<table class="operacoes-table"><thead><tr><th>Data</th><th>Tipo</th><th>Ticker</th><th>Quantidade</th><th>Preço</th><th>Valor Total</th></tr></thead><tbody>';
+                
+                data.operacoes.slice(-10).reverse().forEach(op => {
+                    html += `
+                        <tr>
+                            <td>${new Date(op.timestamp).toLocaleString('pt-BR')}</td>
+                            <td>${op.tipo}</td>
+                            <td>${op.ticker}</td>
+                            <td>${op.quantidade}</td>
+                            <td>R$ ${op.preco.toFixed(2)}</td>
+                            <td>R$ ${op.valor_total.toFixed(2)}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            } catch (error) {
+                console.error('Erro ao carregar operações:', error);
+            }
+        }
+        
+        // Inicializar
+        carregarTickers();
+        atualizarStatus();
+        carregarOperacoes();
+        
+        // Atualizar a cada 5 segundos
+        setInterval(() => {
+            atualizarStatus();
+            carregarOperacoes();
+        }, 5000);
+    </script>
+</body>
+</html>
+

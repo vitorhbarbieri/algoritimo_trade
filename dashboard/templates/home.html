@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Carteira • Importar e Analisar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>body { font-family: 'Inter', sans-serif; }</style>
+</head>
+<body class="bg-gray-50">
+  <header class="bg-indigo-600 text-white">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <h1 class="font-bold text-xl">Dualtrade</h1>
+        <span class="text-xs bg-indigo-700 px-2 py-1 rounded" title="Versão do sistema">v1.2.0</span>
+      </div>
+      <nav class="space-x-4 text-sm">
+        <a href="/" class="hover:underline">Home</a>
+        <a href="#" id="link-trades" class="hover:underline">Operações</a>
+        <a href="#" id="link-carteira" class="hover:underline">Carteira</a>
+        <a href="#" id="link-oportunidades" class="hover:underline">Oportunidades (IA)</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6">
+    <section class="mb-6">
+      <h2 class="text-2xl font-bold mb-2">Importar Operações (Excel)</h2>
+      <p class="text-gray-600 mb-3 text-sm">Modelo recomendado: Excel (.xlsx). Campos: date, ticker, side (BUY/SELL), quantity, price, fees</p>
+      <div class="mb-3">
+        <a href="/api/template_operacoes" class="text-sm text-indigo-600 hover:text-indigo-800 underline">Baixar modelo de importação (Excel)</a>
+      </div>
+      <form id="form-import" class="bg-white rounded-xl shadow p-4 flex items-center space-x-3">
+        <input type="file" id="csv-file" accept=".xlsx,.xlsm,.csv" class="text-sm">
+        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded">Importar arquivo</button>
+        <button id="btn-reset-trades" type="button" class="bg-red-50 hover:bg-red-100 text-red-700 text-sm font-semibold px-3 py-2 rounded border border-red-200">Limpar base</button>
+        <span id="import-status" class="text-sm text-gray-600"></span>
+      </form>
+    </section>
+
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <div class="bg-white rounded-xl shadow p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-lg font-bold">Operações (últimas 200)</h3>
+          <button id="btn-load-trades" class="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded">Atualizar</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-2 py-1 text-left">Data</th>
+                <th class="px-2 py-1 text-left">Ticker</th>
+                <th class="px-2 py-1 text-left">Side</th>
+                <th class="px-2 py-1 text-right">Qtde</th>
+                <th class="px-2 py-1 text-right">Preço</th>
+                <th class="px-2 py-1 text-right">Taxas</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-trades" class="divide-y"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl shadow p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-lg font-bold">Resumo da Carteira</h3>
+          <div class="flex items-center space-x-2">
+            <button id="btn-atualizar-dividendos" class="text-sm bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold shadow-md hover:shadow-lg transition-all" title="Forçar atualização de dividendos da API Brapi.dev">🔄 Atualizar Dividendos</button>
+            <button id="btn-load-portfolio" class="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded">Recalcular</button>
+          </div>
+        </div>
+        <div id="dividendos-status" class="text-xs text-gray-500 mb-2 min-h-[20px]"></div>
+        <div class="overflow-x-auto mb-3">
+          <table class="min-w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-2 py-1 text-left">Ticker</th>
+                <th class="px-2 py-1 text-right">Qtde</th>
+                <th class="px-2 py-1 text-right">Preço Médio</th>
+                <th class="px-2 py-1 text-right">Último</th>
+                <th class="px-2 py-1 text-right">Valor</th>
+                <th class="px-2 py-1 text-right">Dividendos</th>
+                <th class="px-2 py-1 text-right">Rentabilidade</th>
+                <th class="px-2 py-1 text-right">Rent. Anualizada</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-portfolio" class="divide-y"></tbody>
+          </table>
+        </div>
+        <div id="portfolio-totals" class="text-sm text-gray-700 space-y-1"></div>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-xl shadow p-4">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="text-lg font-bold">🤖 Recomendações de IA</h3>
+        <button id="btn-opportunities" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded font-semibold">Analisar Carteira</button>
+      </div>
+      <p class="text-sm text-gray-600 mb-3">Análise estratégica da sua carteira com recomendações de movimentos (manter, aumentar, reduzir, vender).</p>
+      
+      <div id="ia-loading" class="hidden text-center py-4">
+        <p class="text-sm text-gray-600">🤖 Analisando carteira com IA...</p>
+      </div>
+      
+      <div id="ia-resumo" class="hidden mb-4 p-3 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+        <p class="text-sm font-semibold text-blue-800" id="ia-resumo-texto"></p>
+      </div>
+      
+      <div id="ia-recomendacoes" class="hidden space-y-3 mb-4"></div>
+      
+      <div id="ia-observacoes" class="hidden mb-4">
+        <h4 class="text-sm font-semibold text-gray-700 mb-2">📋 Observações Gerais:</h4>
+        <ul id="ia-observacoes-list" class="list-disc list-inside text-sm text-gray-700 space-y-1"></ul>
+      </div>
+      
+      <div id="ia-sugestoes" class="hidden">
+        <h4 class="text-sm font-semibold text-gray-700 mb-2">💡 Sugestões Estratégicas:</h4>
+        <ul id="ia-sugestoes-list" class="list-disc list-inside text-sm text-gray-700 space-y-1"></ul>
+      </div>
+      
+      <div id="ia-erro" class="hidden p-3 bg-red-50 rounded-lg border-l-4 border-red-500">
+        <p class="text-sm text-red-800" id="ia-erro-texto"></p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Aguardar DOM carregar completamente
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('📄 DOM carregado. Inicializando scripts...');
+    });
+
+    function moeda(v){ return v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+
+    document.getElementById('form-import').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const fileInput = document.getElementById('csv-file');
+      const statusEl = document.getElementById('import-status');
+      if (!fileInput.files || fileInput.files.length === 0) {
+        statusEl.textContent = 'Selecione um arquivo CSV.';
+        return;
+      }
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+      statusEl.textContent = 'Importando...';
+      try {
+        const resp = await fetch('/api/importar_operacoes', { method: 'POST', body: formData });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.erro || 'Falha ao importar');
+        statusEl.textContent = `Importado com sucesso: ${data.inseridos} operações.`;
+        document.getElementById('btn-load-trades').click();
+        document.getElementById('btn-load-portfolio').click();
+      } catch (err) {
+        statusEl.textContent = `Erro: ${err.message}`;
+      }
+    });
+
+    document.getElementById('btn-load-trades').addEventListener('click', async ()=>{
+      const tbody = document.getElementById('tbody-trades');
+      tbody.innerHTML = '<tr><td class="px-2 py-1 text-gray-500" colspan="6">Carregando...</td></tr>';
+      try {
+        const resp = await fetch('/api/trades');
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.erro || 'Falha ao listar trades');
+        const rows = data.trades || [];
+        if (rows.length === 0) {
+          tbody.innerHTML = '<tr><td class="px-2 py-1 text-gray-500" colspan="6">Nenhuma operação encontrada.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = '';
+        rows.forEach(r=>{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="px-2 py-1">${r.trade_date}</td>
+            <td class="px-2 py-1">${r.ticker}</td>
+            <td class="px-2 py-1">${r.side}</td>
+            <td class="px-2 py-1 text-right">${r.quantity}</td>
+            <td class="px-2 py-1 text-right">${moeda(r.price)}</td>
+            <td class="px-2 py-1 text-right">${moeda(r.fees)}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        tbody.innerHTML = `<tr><td class="px-2 py-1 text-red-600" colspan="6">Erro: ${err.message}</td></tr>`;
+      }
+    });
+
+    document.getElementById('btn-load-portfolio').addEventListener('click', async ()=>{
+      const tbody = document.getElementById('tbody-portfolio');
+      const totals = document.getElementById('portfolio-totals');
+      tbody.innerHTML = '<tr><td class="px-2 py-1 text-gray-500" colspan="7">Calculando...</td></tr>';
+      totals.textContent = '';
+      try {
+        const resp = await fetch('/api/portfolio_resumo');
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.erro || 'Falha ao calcular carteira');
+        const rows = data.positions || [];
+        if (rows.length === 0) {
+          tbody.innerHTML = '<tr><td class="px-2 py-1 text-gray-500" colspan="7">Nenhuma posição aberta.</td></tr>';
+        } else {
+          tbody.innerHTML = '';
+          rows.forEach(r=>{
+            const tr = document.createElement('tr');
+            const precoUltimo = (r.preco_ultimo !== null && r.preco_ultimo !== undefined) 
+              ? moeda(r.preco_ultimo) 
+              : '<span class="text-gray-400 italic">Preço não disponível</span>';
+            const valorPosicao = (r.valor_posicao !== null && r.valor_posicao !== undefined)
+              ? moeda(r.valor_posicao)
+              : '<span class="text-gray-400 italic">-</span>';
+            
+            // Formatar rentabilidade simples
+            let rentSimples = '<span class="text-gray-400 italic">-</span>';
+            if (r.rentabilidade !== null && r.rentabilidade !== undefined) {
+              const rentPercent = (r.rentabilidade * 100).toFixed(2);
+              const rentClass = r.rentabilidade >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold';
+              rentSimples = `<span class="${rentClass}">${rentPercent}%</span>`;
+            }
+            
+            // Formatar rentabilidade anualizada
+            let rentAnualizada = '<span class="text-gray-400 italic">-</span>';
+            if (r.rentabilidade_anualizada !== null && r.rentabilidade_anualizada !== undefined) {
+              const rentPercent = (r.rentabilidade_anualizada * 100).toFixed(2);
+              const rentClass = r.rentabilidade_anualizada >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold';
+              rentAnualizada = `<span class="${rentClass}">${rentPercent}%</span>`;
+            }
+            
+            // Formatar dividendos (clicável se houver dividendos)
+            const dividendos = r.dividendos_recebidos || 0;
+            let dividendosStr = '<span class="text-gray-400 italic">-</span>';
+            let dividendosCellClass = 'px-2 py-1 text-right';
+            
+            if (dividendos > 0) {
+              dividendosStr = `<span class="text-green-600 font-semibold cursor-pointer hover:text-green-800 hover:underline" title="Clique para ver detalhes">${moeda(dividendos)}</span>`;
+              dividendosCellClass += ' cursor-pointer';
+            }
+            
+            tr.innerHTML = `
+              <td class="px-2 py-1">${r.ticker}</td>
+              <td class="px-2 py-1 text-right">${r.quantidade}</td>
+              <td class="px-2 py-1 text-right">${moeda(r.preco_medio)}</td>
+              <td class="px-2 py-1 text-right">${precoUltimo}</td>
+              <td class="px-2 py-1 text-right">${valorPosicao}</td>
+              <td class="${dividendosCellClass}" data-ticker="${r.ticker}">${dividendosStr}</td>
+              <td class="px-2 py-1 text-right">${rentSimples}</td>
+              <td class="px-2 py-1 text-right">${rentAnualizada}</td>
+            `;
+            
+            // Adicionar evento de clique na célula de dividendos
+            if (dividendos > 0) {
+              const dividendosCell = tr.querySelector(`td[data-ticker="${r.ticker}"]`);
+              dividendosCell.addEventListener('click', () => {
+                abrirModalDividendos(r.ticker);
+              });
+            }
+            
+            tbody.appendChild(tr);
+          });
+        }
+        totals.innerHTML = `
+          <div class="border-t pt-2 mt-2">
+            <p class="font-semibold text-gray-800 mb-1">📊 Carteira (Posições Abertas):</p>
+            <p class="text-xs">Investido: <strong>${moeda(data.total_investido)}</strong></p>
+            <p class="text-xs">Valor Atual: <strong>${moeda(data.total_valor)}</strong></p>
+            <p class="text-xs">PnL: <strong class="${data.pnl_carteira>=0?'text-green-600':'text-red-600'}">${moeda(data.pnl_carteira)}</strong></p>
+            <p class="text-xs">Rentabilidade: <strong class="${data.rentabilidade_carteira>=0?'text-green-600':'text-red-600'}">${(data.rentabilidade_carteira*100).toFixed(2)}%</strong></p>
+          </div>
+          <div class="border-t pt-2 mt-2">
+            <p class="font-semibold text-gray-800 mb-1">💰 Vendas Realizadas:</p>
+            <p class="text-xs">Custo: <strong>${moeda(data.custo_vendas || 0)}</strong></p>
+            <p class="text-xs">Receita: <strong>${moeda(data.receita_vendas || 0)}</strong></p>
+            <p class="text-xs">PnL Realizado: <strong class="${(data.pnl_realizado || 0)>=0?'text-green-600':'text-red-600'}">${moeda(data.pnl_realizado || 0)}</strong></p>
+            <p class="text-xs">Rentabilidade: <strong class="${(data.rentabilidade_realizada || 0)>=0?'text-green-600':'text-red-600'}">${((data.rentabilidade_realizada || 0)*100).toFixed(2)}%</strong></p>
+          </div>
+          <div class="border-t pt-2 mt-2">
+            <p class="font-semibold text-gray-800 mb-1">💵 Dividendos Recebidos:</p>
+            <p class="text-xs">Total: <strong class="text-green-600">${moeda(data.total_dividendos || 0)}</strong></p>
+          </div>
+          <div class="border-t pt-2 mt-2">
+            <p class="font-semibold text-gray-800 mb-1">🎯 Total Geral:</p>
+            <p class="text-xs">PnL Total (incluindo dividendos): <strong class="${data.pnl_total>=0?'text-green-600':'text-red-600'}">${moeda(data.pnl_total)}</strong></p>
+            <p class="text-xs">Rentabilidade Total: <strong class="${data.rentabilidade>=0?'text-green-600':'text-red-600'}">${(data.rentabilidade*100).toFixed(2)}%</strong></p>
+          </div>
+        `;
+      } catch (err) {
+        tbody.innerHTML = `<tr><td class="px-2 py-1 text-red-600" colspan="8">Erro: ${err.message}</td></tr>`;
+      }
+    });
+
+    document.getElementById('btn-opportunities').addEventListener('click', async ()=>{
+      const loadingEl = document.getElementById('ia-loading');
+      const resumoEl = document.getElementById('ia-resumo');
+      const resumoTextoEl = document.getElementById('ia-resumo-texto');
+      const recomendacoesEl = document.getElementById('ia-recomendacoes');
+      const observacoesEl = document.getElementById('ia-observacoes');
+      const observacoesListEl = document.getElementById('ia-observacoes-list');
+      const sugestoesEl = document.getElementById('ia-sugestoes');
+      const sugestoesListEl = document.getElementById('ia-sugestoes-list');
+      const erroEl = document.getElementById('ia-erro');
+      const erroTextoEl = document.getElementById('ia-erro-texto');
+      
+      // Ocultar elementos anteriores
+      resumoEl.classList.add('hidden');
+      recomendacoesEl.classList.add('hidden');
+      observacoesEl.classList.add('hidden');
+      sugestoesEl.classList.add('hidden');
+      erroEl.classList.add('hidden');
+      
+      // Mostrar loading
+      loadingEl.classList.remove('hidden');
+      
+      try {
+        const resp = await fetch('/api/ia_recomendacoes');
+        const data = await resp.json();
+        
+        if (!resp.ok) throw new Error(data.erro || 'Falha ao gerar recomendações');
+        
+        const recs = data.recomendacoes || {};
+        
+        // Exibir resumo
+        if (recs.resumo) {
+          resumoTextoEl.textContent = recs.resumo;
+          resumoEl.classList.remove('hidden');
+        }
+        
+        // Exibir recomendações por ticker
+        if (recs.recomendacoes && recs.recomendacoes.length > 0) {
+          recomendacoesEl.innerHTML = '';
+          recs.recomendacoes.forEach(rec => {
+            const div = document.createElement('div');
+            div.className = 'p-3 rounded-lg border-l-4 ' + 
+              (rec.acao === 'VENDER' ? 'bg-red-50 border-red-500' :
+               rec.acao === 'REDUZIR' ? 'bg-orange-50 border-orange-500' :
+               rec.acao === 'AUMENTAR' ? 'bg-green-50 border-green-500' :
+               'bg-blue-50 border-blue-500');
+            
+            const prioridadeBadge = rec.prioridade === 'ALTA' ? 
+              '<span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded ml-2">ALTA</span>' :
+              rec.prioridade === 'MEDIA' ?
+              '<span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded ml-2">MÉDIA</span>' :
+              '<span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded ml-2">BAIXA</span>';
+            
+            div.innerHTML = `
+              <div class="flex items-center justify-between mb-1">
+                <h5 class="font-semibold text-gray-800">${rec.ticker} - ${rec.acao}</h5>
+                ${prioridadeBadge}
+              </div>
+              <p class="text-sm text-gray-700 mb-1">${rec.justificativa}</p>
+              ${rec.rentabilidade_atual ? `<p class="text-xs text-gray-600">Rentabilidade atual: ${rec.rentabilidade_atual}</p>` : ''}
+              ${rec.perspectiva ? `<p class="text-xs text-gray-600 mt-1 italic">${rec.perspectiva}</p>` : ''}
+            `;
+            recomendacoesEl.appendChild(div);
+          });
+          recomendacoesEl.classList.remove('hidden');
+        }
+        
+        // Exibir observações gerais
+        if (recs.observacoes_gerais && recs.observacoes_gerais.length > 0) {
+          observacoesListEl.innerHTML = '';
+          recs.observacoes_gerais.forEach(obs => {
+            const li = document.createElement('li');
+            li.textContent = obs;
+            observacoesListEl.appendChild(li);
+          });
+          observacoesEl.classList.remove('hidden');
+        }
+        
+        // Exibir sugestões estratégicas
+        if (recs.sugestoes_estrategicas && recs.sugestoes_estrategicas.length > 0) {
+          sugestoesListEl.innerHTML = '';
+          recs.sugestoes_estrategicas.forEach(sug => {
+            const li = document.createElement('li');
+            li.textContent = sug;
+            sugestoesListEl.appendChild(li);
+          });
+          sugestoesEl.classList.remove('hidden');
+        }
+        
+      } catch (err) {
+        erroTextoEl.textContent = `Erro: ${err.message}`;
+        erroEl.classList.remove('hidden');
+      } finally {
+        loadingEl.classList.add('hidden');
+      }
+    });
+
+    document.getElementById('btn-reset-trades').addEventListener('click', async ()=>{
+      const statusEl = document.getElementById('import-status');
+      if (!confirm('Tem certeza que deseja limpar todas as operações? Esta ação não pode ser desfeita.')) return;
+      statusEl.textContent = 'Limpando base...';
+      try {
+        const resp = await fetch('/api/trades_reset', { method: 'POST' });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.erro || 'Falha ao limpar base');
+        statusEl.textContent = 'Base limpa com sucesso.';
+        document.getElementById('tbody-trades').innerHTML = '';
+        document.getElementById('tbody-portfolio').innerHTML = '';
+        document.getElementById('portfolio-totals').textContent = '';
+      } catch (err) {
+        statusEl.textContent = `Erro: ${err.message}`;
+      }
+    });
+
+    // Botão de atualizar dividendos - Configurar após DOM carregar
+    function configurarBotaoDividendos() {
+      const btnAtualizarDividendos = document.getElementById('btn-atualizar-dividendos');
+      if (!btnAtualizarDividendos) {
+        console.error('❌ Botão btn-atualizar-dividendos não encontrado! Verificando novamente...');
+        setTimeout(configurarBotaoDividendos, 100); // Tentar novamente após 100ms
+        return;
+      }
+      
+      console.log('✅ Botão btn-atualizar-dividendos encontrado e configurado');
+      btnAtualizarDividendos.addEventListener('click', async ()=>{
+        const statusEl = document.getElementById('dividendos-status');
+        const btn = document.getElementById('btn-atualizar-dividendos');
+        
+        console.log('🔄 Iniciando sincronização de dividendos...');
+        statusEl.textContent = '🔄 Sincronizando dividendos da API Brapi.dev...';
+        statusEl.className = 'text-xs text-blue-600 mb-2 font-semibold';
+        btn.disabled = true;
+        btn.textContent = 'Sincronizando...';
+        btn.classList.add('opacity-75', 'cursor-not-allowed');
+        
+        try {
+          const resp = await fetch('/api/dividendos_buscar_automatico', { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ forcar: true })  // Força atualização mesmo se dados são recentes
+          });
+          const data = await resp.json();
+          
+          console.log('📊 Resposta da sincronização:', data);
+          
+          if (!resp.ok) throw new Error(data.erro || 'Falha ao sincronizar dividendos');
+          
+          const total = data.total_importados || 0;
+          const em_cache = data.total_em_cache || 0;
+          const tickers = data.tickers_processados || 0;
+          
+          if (total > 0) {
+            statusEl.textContent = `✅ ${total} novos dividendos importados de ${tickers} ações.`;
+            statusEl.className = 'text-xs text-green-600 mb-2 font-semibold';
+          } else if (em_cache > 0) {
+            statusEl.textContent = `✅ Dados atualizados! ${em_cache} tickers em cache.`;
+            statusEl.className = 'text-xs text-green-600 mb-2';
+          } else {
+            statusEl.textContent = `ℹ️ Nenhum novo dividendo encontrado.`;
+            statusEl.className = 'text-xs text-yellow-600 mb-2';
+          }
+          
+          // Atualizar portfolio automaticamente
+          setTimeout(() => {
+            document.getElementById('btn-load-portfolio').click();
+          }, 500);
+        } catch (err) {
+          console.error('❌ Erro ao sincronizar dividendos:', err);
+          statusEl.textContent = `❌ Erro: ${err.message}`;
+          statusEl.className = 'text-xs text-red-600 mb-2 font-semibold';
+        } finally {
+          btn.disabled = false;
+          btn.textContent = '🔄 Atualizar Dividendos';
+          btn.classList.remove('opacity-75', 'cursor-not-allowed');
+        }
+      });
+    }
+    
+    // Configurar botão quando DOM estiver pronto
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', configurarBotaoDividendos);
+    } else {
+      configurarBotaoDividendos(); // DOM já carregado
+    }
+
+    // Atalhos de navegação
+    document.getElementById('link-trades').addEventListener('click', (e)=>{ e.preventDefault(); document.getElementById('btn-load-trades').click(); window.scrollTo({top: 350, behavior: 'smooth'}); });
+    document.getElementById('link-carteira').addEventListener('click', (e)=>{ e.preventDefault(); document.getElementById('btn-load-portfolio').click(); window.scrollTo({top: 350, behavior: 'smooth'}); });
+    document.getElementById('link-oportunidades').addEventListener('click', (e)=>{ e.preventDefault(); document.getElementById('btn-opportunities').click(); window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'}); });
+  </script>
+
+  <!-- Modal de Detalhes de Dividendos -->
+  <div id="modal-dividendos" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <!-- Header do Modal -->
+      <div class="bg-indigo-600 text-white px-6 py-4 flex items-center justify-between">
+        <div>
+          <h3 class="text-xl font-bold">💵 Detalhes de Dividendos</h3>
+          <p class="text-sm text-indigo-200" id="modal-ticker-name">Ticker</p>
+        </div>
+        <button id="modal-close" class="text-white hover:text-gray-200 text-2xl font-bold">&times;</button>
+      </div>
+      
+      <!-- Conteúdo do Modal -->
+      <div class="flex-1 overflow-y-auto p-6">
+        <div id="modal-loading" class="text-center py-8">
+          <p class="text-gray-600">Carregando detalhes...</p>
+        </div>
+        
+        <div id="modal-content" class="hidden">
+          <div class="mb-4 p-4 bg-green-50 rounded-lg border border-green-200">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm text-gray-600">Total de Dividendos Recebidos</p>
+                <p class="text-2xl font-bold text-green-700" id="modal-total-valor">R$ 0,00</p>
+              </div>
+              <div class="text-right">
+                <p class="text-sm text-gray-600">Quantidade</p>
+                <p class="text-xl font-semibold text-gray-800" id="modal-total-quantidade">0</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-4 py-2 text-left">Data Ex-Dividendo</th>
+                  <th class="px-4 py-2 text-left">Data Pagamento</th>
+                  <th class="px-4 py-2 text-left">Tipo</th>
+                  <th class="px-4 py-2 text-right">Valor por Ação</th>
+                  <th class="px-4 py-2 text-right">Quantidade</th>
+                  <th class="px-4 py-2 text-right">Valor Total</th>
+                </tr>
+              </thead>
+              <tbody id="modal-dividendos-table" class="divide-y">
+                <!-- Preenchido via JavaScript -->
+              </tbody>
+            </table>
+          </div>
+          
+          <div id="modal-empty" class="hidden text-center py-8 text-gray-500">
+            <p>Nenhum dividendo recebido para este ticker.</p>
+          </div>
+        </div>
+        
+        <div id="modal-error" class="hidden text-center py-8">
+          <p class="text-red-600">Erro ao carregar detalhes dos dividendos.</p>
+        </div>
+      </div>
+      
+      <!-- Footer do Modal -->
+      <div class="border-t px-6 py-4 bg-gray-50">
+        <button id="modal-close-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Função para abrir modal de dividendos
+    function abrirModalDividendos(ticker) {
+      const modal = document.getElementById('modal-dividendos');
+      const modalTicker = document.getElementById('modal-ticker-name');
+      const modalLoading = document.getElementById('modal-loading');
+      const modalContent = document.getElementById('modal-content');
+      const modalError = document.getElementById('modal-error');
+      const modalEmpty = document.getElementById('modal-empty');
+      const modalTable = document.getElementById('modal-dividendos-table');
+      const modalTotalValor = document.getElementById('modal-total-valor');
+      const modalTotalQuantidade = document.getElementById('modal-total-quantidade');
+      
+      // Mostrar modal e loading
+      modal.classList.remove('hidden');
+      modalTicker.textContent = ticker;
+      modalLoading.classList.remove('hidden');
+      modalContent.classList.add('hidden');
+      modalError.classList.add('hidden');
+      modalEmpty.classList.add('hidden');
+      
+      // Buscar dados
+      fetch(`/api/dividendos_recebidos/${ticker}`)
+        .then(resp => resp.json())
+        .then(data => {
+          modalLoading.classList.add('hidden');
+          
+          if (data.erro) {
+            modalError.classList.remove('hidden');
+            return;
+          }
+          
+          const dividendos = data.dividendos || [];
+          
+          if (dividendos.length === 0) {
+            modalEmpty.classList.remove('hidden');
+            modalContent.classList.add('hidden');
+            return;
+          }
+          
+          // Exibir total
+          modalTotalValor.textContent = moeda(data.valor_total || 0);
+          modalTotalQuantidade.textContent = data.total || 0;
+          
+          // Preencher tabela
+          modalTable.innerHTML = '';
+          dividendos.forEach(div => {
+            const tr = document.createElement('tr');
+            const tipoBadge = div.tipo === 'JCP' 
+              ? '<span class="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs">JCP</span>'
+              : div.tipo === 'RENDIMENTO'
+              ? '<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">RENDIMENTO</span>'
+              : '<span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">DIVIDENDO</span>';
+            
+            tr.innerHTML = `
+              <td class="px-4 py-2 font-semibold text-gray-700">${formatarData(div.data_ex_dividendo || div.data_pagamento)}</td>
+              <td class="px-4 py-2">${formatarData(div.data_pagamento)}</td>
+              <td class="px-4 py-2">${tipoBadge}</td>
+              <td class="px-4 py-2 text-right">${moeda(div.valor_por_acao)}</td>
+              <td class="px-4 py-2 text-right">${div.quantidade_acoes.toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
+              <td class="px-4 py-2 text-right font-semibold text-green-700">${moeda(div.valor_total)}</td>
+            `;
+            modalTable.appendChild(tr);
+          });
+          
+          modalContent.classList.remove('hidden');
+        })
+        .catch(err => {
+          console.error('Erro ao carregar dividendos:', err);
+          modalLoading.classList.add('hidden');
+          modalError.classList.remove('hidden');
+        });
+    }
+    
+    // Fechar modal
+    function fecharModalDividendos() {
+      document.getElementById('modal-dividendos').classList.add('hidden');
+    }
+    
+    // Event listeners para fechar modal
+    document.getElementById('modal-close').addEventListener('click', fecharModalDividendos);
+    document.getElementById('modal-close-btn').addEventListener('click', fecharModalDividendos);
+    
+    // Fechar ao clicar fora do modal
+    document.getElementById('modal-dividendos').addEventListener('click', (e) => {
+      if (e.target.id === 'modal-dividendos') {
+        fecharModalDividendos();
+      }
+    });
+    
+    // Função auxiliar para formatar data
+    function formatarData(dataStr) {
+      if (!dataStr) return '-';
+      try {
+        const [ano, mes, dia] = dataStr.split('-');
+        return `${dia}/${mes}/${ano}`;
+      } catch {
+        return dataStr;
+      }
+    }
+  </script>
+</body>
+</html>
+
+
