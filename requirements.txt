@@ -9,6 +9,7 @@ flask>=3.0.0
 flask-login>=0.6.3
 werkzeug>=3.0.0
 openpyxl>=3.1.0
+python-dotenv>=1.0.0
 # APIs de IA (opcionais - instale apenas as que quiser usar)
 # google-generativeai>=0.3.0  # Para Google Gemini (GRATUITO)
 # ollama>=0.1.0  # Para Ollama local (100% GRATUITO)
