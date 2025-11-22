@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Algoritimo Trade</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="w-full max-w-md">
+        <div class="bg-white rounded-lg shadow-xl p-8">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">🚀 Algoritimo Trade</h1>
+                <p class="text-gray-600">Faça login para acessar sua carteira</p>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="mb-4 p-4 rounded {% if category == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="/auth/login" id="loginForm">
+                <div class="mb-6">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="email">
+                        Email
+                    </label>
+                    <input 
+                        class="shadow appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" 
+                        id="email" 
+                        name="email" 
+                        type="email" 
+                        placeholder="seu@email.com"
+                        required
+                    >
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="password">
+                        Senha
+                    </label>
+                    <input 
+                        class="shadow appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" 
+                        id="password" 
+                        name="password" 
+                        type="password" 
+                        placeholder="••••••••"
+                        required
+                    >
+                </div>
+
+                <div class="flex items-center justify-between mb-6">
+                    <button 
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded w-full focus:outline-none focus:shadow-outline transition duration-200" 
+                        type="submit"
+                    >
+                        Entrar
+                    </button>
+                </div>
+
+                <div class="text-center">
+                    <p class="text-gray-600 text-sm">
+                        Não tem uma conta? 
+                        <a href="/auth/register" class="text-indigo-600 hover:text-indigo-800 font-bold">Criar conta</a>
+                    </p>
+                </div>
+            </form>
+        </div>
+
+        <div class="mt-6 text-center text-white text-sm">
+            <p>💡 Use qualquer email e senha para criar sua conta</p>
+        </div>
+    </div>
+</body>
+</html>
+

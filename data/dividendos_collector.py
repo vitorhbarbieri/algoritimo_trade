@@ -1,9 +1,11 @@
 """
 Coletor de dividendos de ações brasileiras
 Utiliza múltiplas APIs com fallback automático:
-1. Brapi.dev (primária)
-2. IbovFinancials (fallback)
-3. yfinance (fallback)
+1. Brapi.dev (primária) - ✅ Funcionando
+2. yfinance (fallback) - ⚠️ Pode ter limitações
+3. IbovFinancials (desabilitada temporariamente) - ❌ Endpoints não funcionam
+
+Ordem padrão de tentativa: ['brapi', 'yfinance']
 """
 import os
 import pandas as pd
@@ -420,7 +422,7 @@ def coletar_dividendos_multiplos_tickers(tickers: List[str], limit: int = 100) -
             resultado[ticker] = []
     return resultado
 
-def sincronizar_dividendos_automatico(tickers: List[str] = None, forcar_atualizacao: bool = False) -> Dict[str, Any]:
+def sincronizar_dividendos_automatico(tickers: List[str] = None, forcar_atualizacao: bool = False, user_id: int = None) -> Dict[str, Any]:
     """
     Sincroniza dividendos automaticamente da API Brapi.dev.
     Usa cache inteligente: só busca se dados não existem ou são antigos (> 24h).
@@ -428,16 +430,20 @@ def sincronizar_dividendos_automatico(tickers: List[str] = None, forcar_atualiza
     Args:
         tickers: Lista de tickers. Se None, usa posições abertas da carteira.
         forcar_atualizacao: Se True, força busca mesmo se dados são recentes.
+        user_id: ID do usuário (obrigatório para multi-tenant)
     
     Returns:
         Dicionário com estatísticas da sincronização
     """
+    if user_id is None:
+        user_id = 1  # Fallback para compatibilidade
+    
     from data.trades_repository import positions_summary, insert_dividendos_rows, verificar_necessidade_sincronizacao_dividendos
     
     # Buscar posições abertas se tickers não fornecidos
     if not tickers:
         logger.info("ℹ️  [DIVIDENDOS] Nenhum ticker fornecido. Buscando posições abertas...")
-        resumo = positions_summary()
+        resumo = positions_summary(user_id=user_id)
         posicoes = resumo.get('positions', [])
         if not posicoes:
             logger.warning("⚠️  [DIVIDENDOS] Nenhuma posição aberta encontrada. Não é possível sincronizar dividendos sem posições.")
@@ -456,7 +462,7 @@ def sincronizar_dividendos_automatico(tickers: List[str] = None, forcar_atualiza
     for ticker in tickers:
         try:
             # Verificar se precisa sincronizar
-            if not forcar_atualizacao and not verificar_necessidade_sincronizacao_dividendos(ticker):
+            if not forcar_atualizacao and not verificar_necessidade_sincronizacao_dividendos(ticker, user_id=user_id):
                 logger.info(f"ℹ️  [DIVIDENDOS] {ticker}: Dados em cache são recentes, pulando...")
                 total_em_cache += 1
                 continue
@@ -479,7 +485,7 @@ def sincronizar_dividendos_automatico(tickers: List[str] = None, forcar_atualiza
             
             # Buscar primeira data de compra do ticker
             from data.trades_repository import calcular_quantidade_acoes_na_data
-            resumo = positions_summary()
+            resumo = positions_summary(user_id=user_id)
             posicoes = resumo.get('positions', [])
             posicao = next((p for p in posicoes if p['ticker'] == ticker), None)
             
@@ -495,8 +501,8 @@ def sincronizar_dividendos_automatico(tickers: List[str] = None, forcar_atualiza
                 conn = sqlite3.connect(db_path)
                 try:
                     cur = conn.execute(
-                        "SELECT MIN(trade_date) FROM trades WHERE ticker = ? AND side = 'BUY'",
-                        (ticker,)
+                        "SELECT MIN(trade_date) FROM trades WHERE user_id = ? AND ticker = ? AND side = 'BUY'",
+                        (user_id, ticker)
                     )
                     row = cur.fetchone()
                     primeira_compra = row[0] if row and row[0] else None
@@ -517,20 +523,51 @@ def sincronizar_dividendos_automatico(tickers: List[str] = None, forcar_atualiza
             dividendos_recebidos = 0
             dividendos_ignorados = 0
             
+            # Converter primeira compra para datetime uma vez
+            from datetime import datetime as dt
+            try:
+                primeira_compra_dt = dt.strptime(primeira_compra, "%Y-%m-%d").date()
+            except Exception as e:
+                logger.error(f"❌ [DIVIDENDOS] {ticker}: Erro ao parsear primeira compra {primeira_compra}: {str(e)[:100]}")
+                continue
+            
             for div in dividendos:
                 data_pagamento = div['data_pagamento']
                 data_ex_dividendo = div.get('data_ex_dividendo') or data_pagamento
                 
-                # REGRA CORRETA: Verificar se comprou ANTES da data ex-dividendo
-                # Se primeira_compra >= data_ex_dividendo, NÃO recebeu (comprou na ou depois da data ex)
-                if primeira_compra >= data_ex_dividendo:
+                # Parsear data ex-dividendo para comparação correta
+                try:
+                    data_ex_dt = None
+                    for fmt in ["%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%d/%m/%Y"]:
+                        try:
+                            data_ex_dt = dt.strptime(data_ex_dividendo, fmt).date()
+                            break
+                        except:
+                            continue
+                    
+                    if data_ex_dt is None:
+                        logger.warning(f"⚠️  [DIVIDENDOS] {ticker}: Não foi possível parsear data ex-dividendo {data_ex_dividendo}, usando data_pagamento")
+                        try:
+                            data_ex_dt = dt.strptime(data_pagamento, "%Y-%m-%d").date()
+                        except:
+                            dividendos_ignorados += 1
+                            logger.warning(f"  ⏭️  Dividendo {data_pagamento} ignorado - erro ao parsear datas")
+                            continue
+                    
+                    # REGRA CORRETA: Verificar se comprou ANTES da data ex-dividendo
+                    # Se primeira_compra >= data_ex_dividendo, NÃO recebeu (comprou na ou depois da data ex)
+                    if primeira_compra_dt >= data_ex_dt:
+                        dividendos_ignorados += 1
+                        logger.debug(f"  ⏭️  Dividendo {data_pagamento} (ex: {data_ex_dividendo}) ignorado - compra ({primeira_compra_dt}) foi na ou depois da data ex-dividendo ({data_ex_dt})")
+                        continue
+                except Exception as e_parse:
+                    logger.warning(f"⚠️  [DIVIDENDOS] {ticker}: Erro ao processar data do dividendo {data_pagamento}: {str(e_parse)[:100]}")
                     dividendos_ignorados += 1
-                    logger.debug(f"  ⏭️  Dividendo {data_pagamento} (ex: {data_ex_dividendo}) ignorado - compra ({primeira_compra}) foi na ou depois da data ex-dividendo")
                     continue
                 
                 # Calcular quantidade de ações na DATA EX-DIVIDENDO (não na data de pagamento!)
                 # É preciso ter ações ANTES da data ex-dividendo para receber
-                quantidade_acoes = calcular_quantidade_acoes_na_data(ticker, data_ex_dividendo)
+                quantidade_acoes = calcular_quantidade_acoes_na_data(ticker, data_ex_dividendo, user_id=user_id)
                 
                 if quantidade_acoes <= 0:
                     dividendos_ignorados += 1
@@ -555,7 +592,7 @@ def sincronizar_dividendos_automatico(tickers: List[str] = None, forcar_atualiza
             
             # Importar no banco (com INSERT OR IGNORE para evitar duplicatas)
             if rows_to_import:
-                resultado = insert_dividendos_rows(rows_to_import, fonte=fonte_usada)
+                resultado = insert_dividendos_rows(rows_to_import, fonte=fonte_usada, user_id=user_id)
                 importados = resultado.get('inserted', 0)
                 skipped = resultado.get('skipped', 0)
                 total_importados += importados
@@ -574,13 +611,28 @@ def sincronizar_dividendos_automatico(tickers: List[str] = None, forcar_atualiza
     if erros:
         logger.warning(f"   - Erros: {len(erros)}")
     
+    # Executar agente de limpeza para remover dividendos inválidos
+    logger.info(f"\n🧹 [DIVIDENDOS] Executando agente de limpeza de dividendos inválidos...")
+    try:
+        from data.trades_repository import limpar_dividendos_invalidos
+        resultado_limpeza = limpar_dividendos_invalidos(user_id=user_id)
+        removidos = resultado_limpeza.get('total_removidos', 0)
+        if removidos > 0:
+            logger.info(f"✅ [DIVIDENDOS] Agente de limpeza: {removidos} dividendos inválidos removidos")
+        else:
+            logger.info(f"✅ [DIVIDENDOS] Agente de limpeza: Nenhum dividendo inválido encontrado")
+    except Exception as e_limpeza:
+        logger.warning(f"⚠️  [DIVIDENDOS] Erro ao executar agente de limpeza: {str(e_limpeza)[:100]}")
+        resultado_limpeza = {}
+    
     return {
         "status": "ok",
         "total_encontrados": total_encontrados,
         "total_importados": total_importados,
         "total_em_cache": total_em_cache,
         "tickers_processados": len(tickers),
-        "erros": erros
+        "erros": erros,
+        "limpeza": resultado_limpeza
     }
 
 def importar_dividendos_automatico(tickers: List[str], data_inicio: Optional[str] = None) -> Dict[str, Any]:

@@ -1,0 +1,96 @@
+================================================================================
+  COMO COLOCAR O SITE ONLINE - GUIA RAPIDO
+================================================================================
+
+SEU REPOSITORIO: https://github.com/vitorhbarbieri/algoritimo_trade
+
+================================================================================
+OPCAO 1: RAILWAY (RECOMENDADO - MAIS FACIL E RAPIDO)
+================================================================================
+
+1. Acesse: https://railway.app
+2. Clique em "Login" e faca login com sua conta GitHub
+3. Clique em "New Project"
+4. Selecione "Deploy from GitHub repo"
+5. Autorize Railway a acessar seus repositorios (se necessario)
+6. Escolha o repositorio: vitorhbarbieri/algoritimo_trade
+7. Railway detecta automaticamente o projeto Python e configura tudo!
+8. Aguarde o deploy (2-3 minutos)
+9. PRONTO! Voce recebera uma URL como: 
+   https://algoritimo-trade-production.up.railway.app
+
+VANTAGENS:
+- Deploy automatico quando voce faz git push
+- Sem timeout (sempre online)
+- Facil de usar
+- Gratis para comeco
+
+================================================================================
+OPCAO 2: RENDER (ALTERNATIVA GRATUITA)
+================================================================================
+
+1. Acesse: https://render.com
+2. Faca login com GitHub
+3. Clique em "New +" -> "Web Service"
+4. Conecte o repositorio: vitorhbarbieri/algoritimo_trade
+5. Configure:
+   - Name: algoritimo-trade
+   - Environment: Python 3
+   - Build Command: pip install -r requirements.txt
+   - Start Command: python dashboard/app.py
+6. Clique em "Create Web Service"
+7. Aguarde o deploy (3-5 minutos)
+8. PRONTO! URL: https://algoritimo-trade.onrender.com
+
+OBSERVACAO: Render pode ter timeout de 30 segundos se nao houver trafego
+
+================================================================================
+VARIAVEIS DE AMBIENTE (OPCIONAL)
+================================================================================
+
+Se quiser melhorar performance, adicione no Railway/Render:
+
+- BRAPI_TOKEN - Token da API Brapi.dev (opcional)
+- IBOVFINANCIALS_TOKEN - Token da API IbovFinancials (opcional)
+
+Como adicionar:
+1. No projeto Railway/Render, clique em "Variables" ou "Environment"
+2. Adicione cada variavel com seu valor
+3. O servico reinicia automaticamente
+
+================================================================================
+TESTAR APOS DEPLOY
+================================================================================
+
+1. Acesse a URL fornecida pelo servico
+2. Verifique se o dashboard carrega
+3. Teste a analise de um ticker (ex: ITUB4)
+4. Verifique os logs no painel do servico se houver problemas
+
+================================================================================
+ATUALIZAR O SITE
+================================================================================
+
+Sempre que fizer mudancas, apenas faca:
+
+git add .
+git commit -m "Sua atualizacao"
+git push
+
+O deploy e automatico em alguns minutos!
+
+================================================================================
+ARQUIVOS CONFIGURADOS
+================================================================================
+
+Seu projeto ja esta configurado com:
+- Procfile (para Railway/Heroku)
+- render.yaml (para Render)
+- railway.json (para Railway)
+- runtime.txt (versao Python)
+- requirements.txt (dependencias)
+
+TUDO PRONTO PARA DEPLOY!
+
+================================================================================
+

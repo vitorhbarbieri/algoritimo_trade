@@ -1,0 +1,57 @@
+================================================================================
+  COMO INICIAR O SITE NO LOCALHOST
+================================================================================
+
+OPCAO 1: USANDO O SCRIPT (MAIS FACIL)
+================================================================================
+
+Execute no PowerShell:
+    .\iniciar_localhost.ps1
+
+OU simplesmente:
+    python dashboard/app.py
+
+================================================================================
+OPCAO 2: MANUALMENTE
+================================================================================
+
+1. Abra o PowerShell ou Terminal
+2. Navegue ate a pasta do projeto:
+   cd C:\Projetos\algoritimo_trade
+
+3. Instale as dependencias (se ainda nao instalou):
+   pip install -r requirements.txt
+
+4. Inicie o servidor:
+   python dashboard/app.py
+
+================================================================================
+ACESSAR O SITE
+================================================================================
+
+Apos iniciar o servidor, abra seu navegador e acesse:
+
+    http://localhost:5000
+    
+    OU
+    
+    http://127.0.0.1:5000
+
+================================================================================
+PARAR O SERVIDOR
+================================================================================
+
+No terminal onde o servidor esta rodando, pressione:
+    Ctrl + C
+
+================================================================================
+VERIFICAR SE ESTA RODANDO
+================================================================================
+
+Abra outro terminal e execute:
+    netstat -ano | findstr ":5000"
+
+Se aparecer algo, o servidor esta rodando!
+
+================================================================================
+
