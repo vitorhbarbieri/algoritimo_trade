@@ -43,10 +43,15 @@ if ($porta5000) {
     Write-Host "   Porta 5000 livre" -ForegroundColor Green
 }
 
-# 4. Configurar Gemini
-Write-Host "`n4. Configurando Google Gemini..." -ForegroundColor Cyan
-$env:GOOGLE_API_KEY = "AIzaSyB3gUgY_UyF3sWfDdpJkD5y-UKG0qXfkLI"
-Write-Host "   GOOGLE_API_KEY configurada" -ForegroundColor Green
+# 4. Verificar Gemini
+Write-Host "`n4. Verificando Google Gemini..." -ForegroundColor Cyan
+if (-not $env:GOOGLE_API_KEY) {
+    Write-Host "   ⚠️  GOOGLE_API_KEY não configurada!" -ForegroundColor Yellow
+    Write-Host "   Configure: setx GOOGLE_API_KEY sua_chave_aqui" -ForegroundColor White
+    Write-Host "   Ou crie arquivo .env com: GOOGLE_API_KEY=sua_chave_aqui" -ForegroundColor White
+} else {
+    Write-Host "   ✅ GOOGLE_API_KEY encontrada" -ForegroundColor Green
+}
 
 # 5. Instalar dependências
 Write-Host "`n5. Verificando dependencias..." -ForegroundColor Cyan
