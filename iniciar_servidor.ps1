@@ -1,8 +1,13 @@
 # Script simples para iniciar servidor Flask
 Write-Host "`n=== INICIANDO SERVIDOR ===" -ForegroundColor Green
 
-# Configurar Gemini
-$env:GOOGLE_API_KEY = "AIzaSyB3gUgY_UyF3sWfDdpJkD5y-UKG0qXfkLI"
+# Configurar Gemini (lê de variável de ambiente)
+if (-not $env:GOOGLE_API_KEY) {
+    Write-Host "AVISO: GOOGLE_API_KEY nao configurada!" -ForegroundColor Yellow
+    Write-Host "Configure: setx GOOGLE_API_KEY sua_chave_aqui" -ForegroundColor White
+    Write-Host "Ou crie arquivo .env com: GOOGLE_API_KEY=sua_chave_aqui" -ForegroundColor White
+    exit 1
+}
 
 # Instalar dependências
 Write-Host "Instalando dependencias..." -ForegroundColor Yellow

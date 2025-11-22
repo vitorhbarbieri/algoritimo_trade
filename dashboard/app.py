@@ -67,6 +67,13 @@ except ImportError as e:
 template_dir = os.path.join(os.path.dirname(__file__), 'templates')
 app = Flask(__name__, template_folder=template_dir)
 
+# Carregar variáveis de ambiente de arquivo .env se existir
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv não instalado, usar apenas variáveis de ambiente do sistema
+
 # Configurar Flask-Login
 app.secret_key = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
 login_manager = LoginManager()

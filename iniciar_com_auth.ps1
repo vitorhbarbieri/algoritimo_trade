@@ -21,10 +21,16 @@ try {
 Write-Host "`nVerificando dependencias..." -ForegroundColor Yellow
 pip install -q flask flask-login werkzeug google-generativeai 2>&1 | Out-Null
 
-# Configurar Google Gemini
+# Configurar Google Gemini (lê de variável de ambiente)
 Write-Host "Configurando Google Gemini..." -ForegroundColor Yellow
-$env:GOOGLE_API_KEY = "AIzaSyB3gUgY_UyF3sWfDdpJkD5y-UKG0qXfkLI"
-Write-Host "GOOGLE_API_KEY configurada para esta sessao" -ForegroundColor Green
+if (-not $env:GOOGLE_API_KEY) {
+    Write-Host "AVISO: GOOGLE_API_KEY nao configurada!" -ForegroundColor Yellow
+    Write-Host "Configure: setx GOOGLE_API_KEY sua_chave_aqui" -ForegroundColor White
+    Write-Host "Ou crie arquivo .env com: GOOGLE_API_KEY=sua_chave_aqui" -ForegroundColor White
+    Write-Host "Continuando sem Gemini..." -ForegroundColor Gray
+} else {
+    Write-Host "GOOGLE_API_KEY encontrada" -ForegroundColor Green
+}
 
 # Executar migração se necessário
 Write-Host "Verificando migracao do banco de dados..." -ForegroundColor Yellow
@@ -47,8 +53,7 @@ Write-Host ""
 Write-Host "Pressione Ctrl+C para parar o servidor" -ForegroundColor Gray
 Write-Host ""
 
-# Iniciar servidor Flask com Gemini configurado
+# Iniciar servidor Flask
 cd dashboard
-$env:GOOGLE_API_KEY = "AIzaSyB3gUgY_UyF3sWfDdpJkD5y-UKG0qXfkLI"
 python app.py
 

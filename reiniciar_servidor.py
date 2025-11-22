@@ -60,10 +60,22 @@ for cache_dir in cache_dirs:
 
 print(f"   ✅ Cache limpo ({len(cache_dirs)} diretórios)")
 
-# 3. Configurar Gemini
+# 3. Configurar Gemini (lê de variável de ambiente ou arquivo .env)
 print("\n3. Configurando Google Gemini...")
-os.environ["GOOGLE_API_KEY"] = "AIzaSyB3gUgY_UyF3sWfDdpJkD5y-UKG0qXfkLI"
-print("   ✅ GOOGLE_API_KEY configurada")
+if not os.getenv("GOOGLE_API_KEY"):
+    # Tentar carregar de arquivo .env se existir
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass
+    
+    if not os.getenv("GOOGLE_API_KEY"):
+        print("   ⚠️  GOOGLE_API_KEY não configurada!")
+        print("   Configure: setx GOOGLE_API_KEY sua_chave_aqui")
+        print("   Ou crie arquivo .env com: GOOGLE_API_KEY=sua_chave_aqui")
+else:
+    print("   ✅ GOOGLE_API_KEY encontrada na variável de ambiente")
 
 # 4. Verificar dependências
 print("\n4. Verificando dependências...")
